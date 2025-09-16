@@ -29,11 +29,11 @@ The library supports both `char` and `wchar_t` strings and is suitable for use i
 
 oxhash provides two hashing functions:
 
-1. **Compile-time hash (`hash_compiletime`)**  
+1. **Compile-time hash (`HashCompileTime`)**  
    Evaluates the hash entirely at compile-time using `constexpr` for string literals.
 
-2. **Runtime hash (`hash_runtime`)**  
-   Provides the same hashing logic as `hash_compiletime`, but can evaluate strings at runtime — ideal for user input or dynamic strings.
+2. **Runtime hash (`HashRuntime`)**  
+   Provides the same hashing logic as `HashCompileTime`, but can evaluate strings at runtime — ideal for user input or dynamic strings.
 
 Both functions implement a custom 64-bit hashing algorithm inspired by high-entropy prime-based mixing (similar in spirit to xxHash64) to produce hard-to-reverse and low-collision hash values.
 
