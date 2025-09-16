@@ -15,58 +15,56 @@
 //   - Ideal for anti-reversing (e.g., replacing GetProcAddress)
 // ------------------------------------------------------------
 
-// Hash constants (based on a variant of xxHash64 primes)
-constexpr unsigned long long PRIME1 = 11400714785074694791ull;
-constexpr unsigned long long PRIME2 = 14029467366897019727ull;
-constexpr unsigned long long PRIME3 = 1609587929392839161ull;
-constexpr unsigned long long SEED = 0xBADC0FFEE0DDF00Dull;
+// Build-unique seed: derived from compile-time macros.
+// This value will typically change between builds (when __TIME__ / __DATE__ change),
+// but within a single build it expands to the same numeric value in all translation units.
+// It intentionally does NOT use __COUNTER__ or __LINE__ here, so you can safely reuse
+// the same seed for both compile-time and runtime hashing within the same build.
+#define OXHASH_UNIQUE_SEED ( (__TIME__[0]<<24 | __TIME__[1]<<16 | __TIME__[2]<<8 | __TIME__[3]) ^ \
+                            (__DATE__[0]<<24 | __DATE__[1]<<16 | __DATE__[2]<<8 | __DATE__[3]) ^ \
+                            0xCAFEBABE12345678ull )
 
 // Compile-time string hashing
-template<typename CharT>
-static constexpr unsigned long long hash_compiletime(const CharT* str)
+template<typename CharT, unsigned __int64 N>
+static constexpr unsigned long long HashCompileTime(const CharT(&str)[N])
 {
-    unsigned long long hash = SEED;
-    int i = 0;
+    unsigned long long hash = OXHASH_UNIQUE_SEED;
 
-    while (str[i] != 0)
+    for (unsigned __int64 i = 0; i < N - 1; ++i)
     {
-        hash ^= static_cast<unsigned long long>(
-            static_cast<unsigned char>(str[i])
-            ) * PRIME1;
-
-        hash = (hash << 13) | (hash >> (64 - 13));
-        hash *= PRIME2;
-        ++i;
+        hash = (hash * 31) ^ static_cast<uint64_t>(str[i]);
     }
 
-    hash ^= hash >> 33;
-    hash *= PRIME3;
-    hash ^= hash >> 29;
+    hash ^= hash >> 16;
+    hash *= 0x27d4eb2d;
+    hash ^= hash >> 16;
     return hash;
 }
+
+// Wrapper to force constexpr evaluation & prevent string literal emission
+template<unsigned long long V>
+struct CompileTimeHashWrapper
+{
+    static constexpr unsigned long long value = V;
+};
 
 // Runtime string hashing
 template<typename CharT>
-static __forceinline unsigned long long hash_runtime(const CharT* str)
+static __forceinline unsigned long long HashRuntime(const CharT* str)
 {
-    unsigned long long hash = SEED;
+    unsigned long long hash = OXHASH_UNIQUE_SEED;
 
     while (*str)
     {
-        hash ^= static_cast<unsigned long long>(
-            static_cast<unsigned char>(*str)
-            ) * PRIME1;
-        hash = (hash << 13) | (hash >> (64 - 13));
-        hash *= PRIME2;
+        hash = (hash * 31) ^ static_cast<uint64_t>(*str);
         ++str;
     }
 
-    hash ^= hash >> 33;
-    hash *= PRIME3;
-    hash ^= hash >> 29;
+    hash ^= hash >> 16;
+    hash *= 0x27d4eb2d;
+    hash ^= hash >> 16;
     return hash;
 }
-
 
 // ------------------------------------------------------------
 // Macros for convenience
@@ -74,8 +72,11 @@ static __forceinline unsigned long long hash_runtime(const CharT* str)
 //   constexpr auto h1 = OXHASH_CTIME("SomeCompileTimeString");
 //   auto h2 = OXHASH_RUNTIME("SomeRuntimeString");
 // ------------------------------------------------------------
-#define OXHASH_CTIME(str) hash_compiletime(str)
-#define OXHASH_RUNTIME(str) hash_runtime(str)
+#define OXHASH_CTIME(str) \
+    CompileTimeHashWrapper<HashCompileTime(str)>::value
+
+#define OXHASH_RUNTIME(str) \
+    HashRuntime(str)
 
 /*
 MIT License
