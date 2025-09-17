@@ -24,6 +24,16 @@
                             (__DATE__[0]<<24 | __DATE__[1]<<16 | __DATE__[2]<<8 | __DATE__[3]) ^ \
                             0xCAFEBABE12345678ull )
 
+// Convert char or wchar_t to lowercase
+template<typename CharT>
+static constexpr CharT ToLower(const CharT c)
+{
+    const unsigned int uc = static_cast<unsigned int>(c);
+    return (uc >= 'A' && uc <= 'Z')
+        ? static_cast<CharT>(uc + ('a' - 'A'))
+        : c;
+}
+
 // Compile-time string hashing
 template<typename CharT, unsigned __int64 N>
 static constexpr unsigned long long HashCompileTime(const CharT(&str)[N])
@@ -32,7 +42,7 @@ static constexpr unsigned long long HashCompileTime(const CharT(&str)[N])
 
     for (unsigned __int64 i = 0; i < N - 1; ++i)
     {
-        hash = (hash * 31) ^ static_cast<uint64_t>(str[i]);
+        hash = (hash * 31) ^ static_cast<unsigned long long>(ToLower(str[i]));
     }
 
     hash ^= hash >> 16;
@@ -56,7 +66,7 @@ static __forceinline unsigned long long HashRuntime(const CharT* str)
 
     while (*str)
     {
-        hash = (hash * 31) ^ static_cast<uint64_t>(*str);
+        hash = (hash * 31) ^ static_cast<unsigned long long>(ToLower(*str));
         ++str;
     }
 
